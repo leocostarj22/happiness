@@ -199,7 +199,7 @@ export const useGameStore = create<GameStore>((set, get) => ({
   },
 
   getVoteResults: () => {
-    const { game, votes } = get();
+    const { game, votes, players } = get();
     if (!game) return [];
     
     const currentQuestion = game.questions[game.currentQuestionIndex];
@@ -208,7 +208,12 @@ export const useGameStore = create<GameStore>((set, get) => ({
     const questionVotes = votes.filter((v) => v.questionId === currentQuestion.id);
     const totalVotes = questionVotes.length;
     
-    return currentQuestion.options.map((option, index) => {
+    // Use players as options if the question is set to do so
+    const displayOptions = currentQuestion.usePlayersAsOptions 
+      ? players.map(p => `${p.avatar} ${p.name}`)
+      : currentQuestion.options;
+    
+    return displayOptions.map((option, index) => {
       const count = questionVotes.filter((v) => v.optionIndex === index).length;
       return {
         option,

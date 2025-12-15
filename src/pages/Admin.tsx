@@ -35,6 +35,21 @@ const Admin = () => {
 
   const handleAddQuestion = () => {
     if (!questionText.trim()) return;
+    
+    // No modo votação, não precisamos de opções pois usaremos os jogadores
+    if (selectedMode === 'voting') {
+      const question: Omit<Question, 'id'> = {
+        text: questionText,
+        options: [], // Será preenchido dinamicamente com os jogadores
+        timeLimit,
+        usePlayersAsOptions: true,
+      };
+      addQuestion(question);
+      setQuestionText('');
+      return;
+    }
+    
+    // Modo quiz precisa de opções
     const validOptions = options.filter((o) => o.trim());
     if (validOptions.length < 2) return;
 
@@ -42,7 +57,7 @@ const Admin = () => {
       text: questionText,
       options: validOptions,
       timeLimit,
-      ...(selectedMode === 'quiz' ? { correctAnswer } : {}),
+      correctAnswer,
     };
 
     addQuestion(question);
@@ -220,39 +235,46 @@ const Admin = () => {
                   Pergunta
                 </label>
                 <Input
-                  placeholder="Digite sua pergunta..."
+                  placeholder={game.mode === 'voting' ? "Ex: Quem é mais provável de..." : "Digite sua pergunta..."}
                   value={questionText}
                   onChange={(e) => setQuestionText(e.target.value)}
                   className="h-12"
                 />
               </div>
 
-              <div className="space-y-3">
-                <label className="text-sm font-medium text-foreground">
-                  Opções de Resposta
-                </label>
-                {options.map((option, index) => (
-                  <div key={index} className="flex items-center gap-3">
-                    <span
-                      className={`w-10 h-10 rounded-lg flex items-center justify-center font-display text-lg ${
-                        index === 0
-                          ? 'bg-happiness-yellow'
-                          : index === 1
-                          ? 'bg-happiness-pink'
-                          : index === 2
-                          ? 'bg-happiness-blue'
-                          : 'bg-happiness-green'
-                      } text-primary-foreground`}
-                    >
-                      {String.fromCharCode(65 + index)}
-                    </span>
-                    <Input
-                      placeholder={`Opção ${String.fromCharCode(65 + index)}`}
-                      value={option}
-                      onChange={(e) => updateOption(index, e.target.value)}
-                      className="flex-1"
-                    />
-                    {game.mode === 'quiz' && (
+              {game.mode === 'voting' ? (
+                <div className="bg-happiness-pink/10 border border-happiness-pink/30 rounded-lg p-4">
+                  <p className="text-sm text-foreground flex items-center gap-2">
+                    <Vote className="w-4 h-4 text-happiness-pink" />
+                    Os jogadores conectados aparecerão automaticamente como opções de voto
+                  </p>
+                </div>
+              ) : (
+                <div className="space-y-3">
+                  <label className="text-sm font-medium text-foreground">
+                    Opções de Resposta
+                  </label>
+                  {options.map((option, index) => (
+                    <div key={index} className="flex items-center gap-3">
+                      <span
+                        className={`w-10 h-10 rounded-lg flex items-center justify-center font-display text-lg ${
+                          index === 0
+                            ? 'bg-happiness-yellow'
+                            : index === 1
+                            ? 'bg-happiness-pink'
+                            : index === 2
+                            ? 'bg-happiness-blue'
+                            : 'bg-happiness-green'
+                        } text-primary-foreground`}
+                      >
+                        {String.fromCharCode(65 + index)}
+                      </span>
+                      <Input
+                        placeholder={`Opção ${String.fromCharCode(65 + index)}`}
+                        value={option}
+                        onChange={(e) => updateOption(index, e.target.value)}
+                        className="flex-1"
+                      />
                       <Button
                         variant={correctAnswer === index ? 'default' : 'outline'}
                         size="icon"
@@ -261,10 +283,10 @@ const Admin = () => {
                       >
                         <CheckCircle className="w-5 h-5" />
                       </Button>
-                    )}
-                  </div>
-                ))}
-              </div>
+                    </div>
+                  ))}
+                </div>
+              )}
 
               <div className="space-y-2">
                 <label className="text-sm font-medium text-foreground">
@@ -285,8 +307,9 @@ const Admin = () => {
                 className="w-full"
                 onClick={handleAddQuestion}
                 disabled={
-                  !questionText.trim() ||
-                  options.filter((o) => o.trim()).length < 2
+                  game.mode === 'voting' 
+                    ? !questionText.trim()
+                    : !questionText.trim() || options.filter((o) => o.trim()).length < 2
                 }
               >
                 <Plus className="w-5 h-5" />
@@ -322,21 +345,28 @@ const Admin = () => {
                         <p className="font-semibold text-foreground mt-1">
                           {question.text}
                         </p>
-                        <div className="flex flex-wrap gap-2 mt-3">
-                          {question.options.map((opt, optIndex) => (
-                            <span
-                              key={optIndex}
-                              className={`px-3 py-1 rounded-full text-sm ${
-                                game.mode === 'quiz' &&
-                                question.correctAnswer === optIndex
-                                  ? 'bg-happiness-green/20 text-happiness-green border border-happiness-green'
-                                  : 'bg-muted text-muted-foreground'
-                              }`}
-                            >
-                              {opt}
-                            </span>
-                          ))}
-                        </div>
+                        {question.usePlayersAsOptions ? (
+                          <span className="inline-flex items-center gap-1 mt-3 px-3 py-1 rounded-full text-sm bg-happiness-pink/20 text-happiness-pink border border-happiness-pink">
+                            <Vote className="w-3 h-3" />
+                            Jogadores como opções
+                          </span>
+                        ) : (
+                          <div className="flex flex-wrap gap-2 mt-3">
+                            {question.options.map((opt, optIndex) => (
+                              <span
+                                key={optIndex}
+                                className={`px-3 py-1 rounded-full text-sm ${
+                                  game.mode === 'quiz' &&
+                                  question.correctAnswer === optIndex
+                                    ? 'bg-happiness-green/20 text-happiness-green border border-happiness-green'
+                                    : 'bg-muted text-muted-foreground'
+                                }`}
+                              >
+                                {opt}
+                              </span>
+                            ))}
+                          </div>
+                        )}
                       </div>
                       <Button
                         variant="ghost"
