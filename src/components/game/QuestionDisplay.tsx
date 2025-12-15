@@ -1,4 +1,4 @@
-import { Question } from '@/types/game';
+import { Question, Player } from '@/types/game';
 import { useEffect, useState } from 'react';
 
 interface QuestionDisplayProps {
@@ -8,6 +8,7 @@ interface QuestionDisplayProps {
   showResults?: boolean;
   voteResults?: { option: string; count: number; percentage: number }[];
   correctAnswer?: number;
+  players?: Player[]; // For voting mode - players as options
 }
 
 const QuestionDisplay = ({
@@ -17,6 +18,7 @@ const QuestionDisplay = ({
   showResults = false,
   voteResults = [],
   correctAnswer,
+  players = [],
 }: QuestionDisplayProps) => {
   const [timeLeft, setTimeLeft] = useState(question.timeLimit);
 
@@ -35,6 +37,11 @@ const QuestionDisplay = ({
     'bg-happiness-blue',
     'bg-happiness-green',
   ];
+
+  // Use players as options if the question is set to do so
+  const displayOptions = question.usePlayersAsOptions 
+    ? players.map(p => `${p.avatar} ${p.name}`)
+    : question.options;
 
   return (
     <div className="w-full max-w-4xl mx-auto space-y-8 animate-slide-up">
@@ -62,8 +69,8 @@ const QuestionDisplay = ({
       </div>
 
       {/* Options */}
-      <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
-        {question.options.map((option, index) => {
+      <div className={`grid gap-4 ${displayOptions.length <= 4 ? 'grid-cols-1 md:grid-cols-2' : 'grid-cols-2 md:grid-cols-3'}`}>
+        {displayOptions.map((option, index) => {
           const result = voteResults[index];
           const isCorrect = correctAnswer === index;
 

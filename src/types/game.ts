@@ -6,6 +6,7 @@ export interface Question {
   options: string[];
   correctAnswer?: number; // For quiz mode
   timeLimit: number; // in seconds
+  usePlayersAsOptions?: boolean; // For voting mode - use connected players as options
 }
 
 export interface Game {

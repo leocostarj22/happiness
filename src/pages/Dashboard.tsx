@@ -115,6 +115,7 @@ const Dashboard = () => {
               correctAnswer={
                 game.mode === 'quiz' ? currentQuestion.correctAnswer : undefined
               }
+              players={players}
             />
 
             <div className="flex justify-center gap-4">

@@ -11,6 +11,7 @@ const Player = () => {
   const {
     game,
     currentPlayer,
+    players,
     joinGame,
     submitVote,
     getCurrentQuestion,
@@ -177,6 +178,11 @@ const Player = () => {
     'bg-happiness-green hover:bg-happiness-green/90',
   ];
 
+  // Use players as options if the question is set to do so
+  const displayOptions = currentQuestion.usePlayersAsOptions 
+    ? players.map(p => `${p.avatar} ${p.name}`)
+    : currentQuestion.options;
+
   // Already voted
   if (playerVote || hasVoted) {
     const votedOption = playerVote?.optionIndex ?? selectedOption;
@@ -221,7 +227,7 @@ const Player = () => {
               <div className="bg-card border border-border rounded-xl p-4 inline-block">
                 <span className="text-sm text-muted-foreground">Sua resposta:</span>
                 <p className="font-semibold text-foreground">
-                  {currentQuestion.options[votedOption!]}
+                  {displayOptions[votedOption!]}
                 </p>
               </div>
             </>
@@ -245,8 +251,8 @@ const Player = () => {
       </div>
 
       {/* Options */}
-      <div className="flex-1 grid grid-cols-1 gap-4 py-4">
-        {currentQuestion.options.map((option, index) => (
+      <div className={`flex-1 grid gap-4 py-4 ${displayOptions.length > 4 ? 'grid-cols-2' : 'grid-cols-1'}`}>
+        {displayOptions.map((option, index) => (
           <button
             key={index}
             onClick={() => setSelectedOption(index)}
