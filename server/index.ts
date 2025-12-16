@@ -6,10 +6,23 @@ import cors from 'cors';
 import dotenv from 'dotenv';
 import bcrypt from 'bcryptjs';
 import jwt from 'jsonwebtoken';
+import { z } from 'zod';
+import { randomUUID } from 'crypto';
 
 dotenv.config();
 
 const JWT_SECRET = process.env.JWT_SECRET || 'your-secret-key';
+
+// Validation Schemas
+const registerSchema = z.object({
+  email: z.string().email('Email inválido'),
+  password: z.string().min(6, 'A senha deve ter pelo menos 6 caracteres')
+});
+
+const loginSchema = z.object({
+  email: z.string().email('Email inválido'),
+  password: z.string().min(1, 'Senha é obrigatória')
+});
 
 const app = express();
 app.use(cors());
@@ -38,12 +51,80 @@ const pool = mysql.createPool({
 async function initDB() {
   try {
     const connection = await pool.getConnection();
+
     try {
-      // Check if show_results column exists, if not add it
-      await connection.query('ALTER TABLE games ADD COLUMN show_results BOOLEAN DEFAULT FALSE');
-      console.log('Schema updated: Added show_results to games table');
+      // Create games table
+      await connection.query(`
+        CREATE TABLE IF NOT EXISTS games (
+          id VARCHAR(36) PRIMARY KEY,
+          name VARCHAR(255) NOT NULL,
+          mode VARCHAR(50) NOT NULL,
+          status VARCHAR(50) DEFAULT 'waiting',
+          current_question_index INT DEFAULT 0,
+          admin_id VARCHAR(36),
+          show_results BOOLEAN DEFAULT FALSE,
+          created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP
+        )
+      `);
+      console.log('Schema check: games table checked/created');
     } catch (err: any) {
-      if (err.code !== 'ER_DUP_FIELDNAME') console.log('Schema check:', err.message);
+      console.log('Schema check games:', err.message);
+    }
+
+    try {
+      // Create players table
+      await connection.query(`
+        CREATE TABLE IF NOT EXISTS players (
+          id VARCHAR(36) PRIMARY KEY,
+          game_id VARCHAR(36) NOT NULL,
+          name VARCHAR(255) NOT NULL,
+          avatar VARCHAR(255),
+          score INT DEFAULT 0,
+          connected BOOLEAN DEFAULT TRUE,
+          created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
+          UNIQUE KEY idx_game_player_name (game_id, name)
+        )
+      `);
+      console.log('Schema check: players table checked/created');
+    } catch (err: any) {
+      console.log('Schema check players:', err.message);
+    }
+
+    try {
+      // Create questions table
+      await connection.query(`
+        CREATE TABLE IF NOT EXISTS questions (
+          id VARCHAR(36) PRIMARY KEY,
+          game_id VARCHAR(36) NOT NULL,
+          text TEXT NOT NULL,
+          options TEXT,
+          correct_answer INT,
+          use_players_as_options BOOLEAN DEFAULT FALSE,
+          time_limit INT DEFAULT 30,
+          created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP
+        )
+      `);
+      console.log('Schema check: questions table checked/created');
+    } catch (err: any) {
+      console.log('Schema check questions:', err.message);
+    }
+
+    try {
+      // Create votes table
+      await connection.query(`
+        CREATE TABLE IF NOT EXISTS votes (
+          id INT AUTO_INCREMENT PRIMARY KEY,
+          game_id VARCHAR(36) NOT NULL,
+          player_id VARCHAR(36) NOT NULL,
+          question_id VARCHAR(36) NOT NULL,
+          option_index INT,
+          target_player_id VARCHAR(36),
+          created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP
+        )
+      `);
+      console.log('Schema check: votes table checked/created');
+    } catch (err: any) {
+      console.log('Schema check votes:', err.message);
     }
 
     try {
@@ -56,53 +137,54 @@ async function initDB() {
           created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP
         )
       `);
-      console.log('Schema updated: admins table checked/created');
+      console.log('Schema check: admins table checked/created');
     } catch (err: any) {
       console.log('Schema check admins:', err.message);
+    }
+
+    // Now run ALTER TABLEs for backward compatibility or updates
+    try {
+      // Check if show_results column exists, if not add it
+      await connection.query('ALTER TABLE games ADD COLUMN show_results BOOLEAN DEFAULT FALSE');
+    } catch (err: any) {
+      if (err.code !== 'ER_DUP_FIELDNAME') console.log('Schema check (alter games):', err.message);
     }
 
     try {
       // Add admin_id to games
       await connection.query('ALTER TABLE games ADD COLUMN admin_id VARCHAR(36)');
-      console.log('Schema updated: Added admin_id to games table');
     } catch (err: any) {
-      if (err.code !== 'ER_DUP_FIELDNAME') console.log('Schema check:', err.message);
+      if (err.code !== 'ER_DUP_FIELDNAME') console.log('Schema check (alter games admin_id):', err.message);
     }
 
     try {
       // Add created_at to questions
       await connection.query('ALTER TABLE questions ADD COLUMN created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP');
-      console.log('Schema updated: Added created_at to questions table');
     } catch (err: any) {
-      if (err.code !== 'ER_DUP_FIELDNAME') console.log('Schema check:', err.message);
+      if (err.code !== 'ER_DUP_FIELDNAME') console.log('Schema check (alter questions):', err.message);
     }
 
     try {
-      // Add unique constraint on game_id + name to prevent duplicates
-      // First, we might need to clean up duplicates if any exist (optional but safer)
-      // For now, we just attempt to add the index. If it fails due to dups, it fails.
+      // Add unique index to players if missing (might fail if created above, which is fine)
       await connection.query('ALTER TABLE players ADD UNIQUE INDEX idx_game_player_name (game_id, name)');
-      console.log('Schema updated: Added unique index to players table');
     } catch (err: any) {
       if (err.code !== 'ER_DUP_KEYNAME' && err.code !== 'ER_DUP_ENTRY') {
-        console.log('Schema check index:', err.message);
+        // console.log('Schema check index:', err.message); // Ignore if exists
       }
     }
 
     try {
       // Add created_at to players
       await connection.query('ALTER TABLE players ADD COLUMN created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP');
-      console.log('Schema updated: Added created_at to players table');
     } catch (err: any) {
-      if (err.code !== 'ER_DUP_FIELDNAME') console.log('Schema check:', err.message);
+      if (err.code !== 'ER_DUP_FIELDNAME') console.log('Schema check (alter players):', err.message);
     }
 
     try {
       // Add target_player_id to votes
       await connection.query('ALTER TABLE votes ADD COLUMN target_player_id VARCHAR(255)');
-      console.log('Schema updated: Added target_player_id to votes table');
     } catch (err: any) {
-      if (err.code !== 'ER_DUP_FIELDNAME') console.log('Schema check (votes.target_player_id):', err.message);
+      if (err.code !== 'ER_DUP_FIELDNAME') console.log('Schema check (alter votes):', err.message);
     }
 
     try {
@@ -287,10 +369,24 @@ io.on('connection', (socket) => {
     }
   });
 
-  socket.on('adminRegister', async ({ email, password }, callback) => {
+  socket.on('adminRegister', async (data, callback) => {
     try {
+      // Validate input
+      const result = registerSchema.safeParse(data);
+      if (!result.success) {
+        return callback({ success: false, error: result.error.errors[0].message });
+      }
+
+      const { email, password } = result.data;
+
+      // Check if email exists
+      const [existing] = await pool.query('SELECT id FROM admins WHERE email = ?', [email]);
+      if ((existing as any[]).length > 0) {
+        return callback({ success: false, error: 'Este email já está cadastrado' });
+      }
+
       const hashedPassword = await bcrypt.hash(password, 10);
-      const adminId = Math.random().toString(36).substring(2, 9);
+      const adminId = randomUUID();
       
       await pool.query(
         'INSERT INTO admins (id, email, password_hash) VALUES (?, ?, ?)',
@@ -301,24 +397,32 @@ io.on('connection', (socket) => {
       callback({ success: true, token, admin: { id: adminId, email } });
     } catch (err: any) {
       console.error('Register error:', err);
-      callback({ success: false, error: 'Email already exists or server error' });
+      callback({ success: false, error: 'Erro ao criar conta. Tente novamente.' });
     }
   });
 
-  socket.on('adminLogin', async ({ email, password }, callback) => {
+  socket.on('adminLogin', async (data, callback) => {
     try {
+      // Validate input
+      const result = loginSchema.safeParse(data);
+      if (!result.success) {
+        return callback({ success: false, error: result.error.errors[0].message });
+      }
+
+      const { email, password } = result.data;
+
       const [admins] = await pool.query('SELECT * FROM admins WHERE email = ?', [email]);
       const admin = (admins as any[])[0];
       
       if (!admin || !await bcrypt.compare(password, admin.password_hash)) {
-        return callback({ success: false, error: 'Invalid credentials' });
+        return callback({ success: false, error: 'Credenciais inválidas' });
       }
 
       const token = jwt.sign({ id: admin.id, email: admin.email }, JWT_SECRET, { expiresIn: '24h' });
       callback({ success: true, token, admin: { id: admin.id, email: admin.email } });
     } catch (err) {
       console.error('Login error:', err);
-      callback({ success: false, error: 'Server error' });
+      callback({ success: false, error: 'Erro no servidor. Tente novamente.' });
     }
   });
 
