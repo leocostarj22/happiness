@@ -8,8 +8,13 @@ import bcrypt from 'bcryptjs';
 import jwt from 'jsonwebtoken';
 import { z } from 'zod';
 import { randomUUID } from 'crypto';
+import path from 'path';
+import { fileURLToPath } from 'url';
 
 dotenv.config();
+
+const __filename = fileURLToPath(import.meta.url);
+const __dirname = path.dirname(__filename);
 
 const JWT_SECRET = process.env.JWT_SECRET || 'your-secret-key';
 
@@ -28,10 +33,14 @@ const app = express();
 app.use(cors());
 app.use(express.json());
 
+// Serve static files from the public directory
+app.use(express.static(path.join(__dirname, 'public')));
+
 const httpServer = createServer(app);
 const io = new Server(httpServer, {
+  path: '/happiness/socket.io', // Match the client-side path
   cors: {
-    origin: "*", // Allow all origins for local development
+    origin: ["http://localhost:5173", "http://localhost:3000", "https://party-joy.gmcentral.pt", "https://www.gmcentral.pt", "https://gmcentral.pt"],
     methods: ["GET", "POST"]
   }
 });
@@ -39,9 +48,9 @@ const io = new Server(httpServer, {
 // Database Connection
 const pool = mysql.createPool({
   host: process.env.DB_HOST || 'localhost',
-  user: process.env.DB_USER || 'root',
+  user: process.env.DB_USER || process.env.DB_USERNAME || 'root',
   password: process.env.DB_PASSWORD || '',
-  database: process.env.DB_NAME || 'party_joy_hub',
+  database: process.env.DB_NAME || process.env.DB_DATABASE || 'party_joy_hub',
   waitForConnections: true,
   connectionLimit: 10,
   queueLimit: 0
@@ -737,6 +746,11 @@ io.on('connection', (socket) => {
       socket.emit('gameStateUpdate', state);
     }
   });
+});
+
+// Handle SPA routing - return index.html for any unknown route
+app.get(/^(?!\/socket.io).*$/, (req, res) => {
+  res.sendFile(path.join(__dirname, 'public', 'index.html'));
 });
 
 const PORT = process.env.PORT || 3000;

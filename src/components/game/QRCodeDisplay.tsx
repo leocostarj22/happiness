@@ -6,7 +6,8 @@ interface QRCodeDisplayProps {
 }
 
 const QRCodeDisplay = ({ gameCode, size = 200 }: QRCodeDisplayProps) => {
-  const joinUrl = `${window.location.origin}/play/${gameCode}`;
+  const basePath = import.meta.env.PROD ? '/happiness' : '';
+  const joinUrl = `${window.location.origin}${basePath}/play/${gameCode}`;
 
   return (
     <div className="flex flex-col items-center gap-6 animate-bounce-in">

@@ -167,7 +167,7 @@ const Admin = () => {
             <Button 
               variant="outline" 
               size="sm"
-              onClick={() => window.open(`/dashboard?gameId=${game.id}`, '_blank')}
+              onClick={() => window.open(`${import.meta.env.PROD ? '/happiness' : ''}/dashboard?gameId=${game.id}`, '_blank')}
               title="Abrir tela do jogo em nova aba"
               className="flex-1 md:flex-none"
             >
