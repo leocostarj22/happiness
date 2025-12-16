@@ -1,73 +1,84 @@
-# Welcome to your Lovable project
+# Party Joy Hub 🎉
 
-## Project info
+**Party Joy Hub** é a plataforma definitiva para interação em grupo, projetada para transformar qualquer reunião, festa ou evento corporativo em uma experiência inesquecível. Com foco em engajamento em tempo real, nossa aplicação permite que administradores criem e gerenciem jogos interativos onde os participantes usam seus próprios smartphones como controles.
 
-**URL**: https://lovable.dev/projects/REPLACE_WITH_PROJECT_ID
+## 🚀 Funcionalidades Principais
 
-## How can I edit this code?
+### 1. Modos de Jogo
+*   **🧠 Quiz Interativo**: Teste o conhecimento da galera! Crie perguntas de múltipla escolha com temporizadores. Pontuação automática e ranking em tempo real.
+*   **🗳️ Votação / Enquete**: Descubra a opinião do grupo. Ideal para "Quem é mais provável de...", eleições rápidas ou feedbacks instantâneos.
 
-There are several ways of editing your application.
+### 2. Experiência do Usuário (Player)
+*   **Acesso Simplificado**: Entrada via QR Code ou Link direto, sem necessidade de baixar apps.
+*   **Avatares Divertidos**: Identificação visual automática e amigável.
+*   **Interface Responsiva**: Design otimizado para qualquer dispositivo móvel.
 
-**Use Lovable**
+### 3. Painel do Administrador
+*   **Criação Intuitiva**: Ferramentas fáceis para criar e editar perguntas.
+*   **Gerenciamento Total**: Controle o fluxo do jogo (Lobby -> Pergunta -> Resultados -> Ranking).
+*   **Dashboard Ao Vivo**: Visualize quem votou, estatísticas e o pódio final em uma tela projetável.
+*   **Segurança**: Área administrativa protegida por login.
 
-Simply visit the [Lovable Project](https://lovable.dev/projects/REPLACE_WITH_PROJECT_ID) and start prompting.
+## 🛠️ Tecnologias Utilizadas
 
-Changes made via Lovable will be committed automatically to this repo.
+O **Party Joy Hub** é construído com uma stack moderna e robusta para garantir performance em tempo real:
 
-**Use your preferred IDE**
+*   **Frontend**: [React](https://react.dev/) + [Vite](https://vitejs.dev/) + [TypeScript](https://www.typescriptlang.org/)
+*   **UI/UX**: [Tailwind CSS](https://tailwindcss.com/) + [Shadcn/ui](https://ui.shadcn.com/)
+*   **Backend**: [Node.js](https://nodejs.org/) + [Express](https://expressjs.com/)
+*   **Real-time**: [Socket.io](https://socket.io/) para comunicação bidirecional instantânea.
+*   **Banco de Dados**: [MySQL](https://www.mysql.com/) para persistência de jogos, jogadores e histórico.
+*   **Gerenciamento de Estado**: [Zustand](https://github.com/pmndrs/zustand).
 
-If you want to work locally using your own IDE, you can clone this repo and push changes. Pushed changes will also be reflected in Lovable.
+## 📦 Instalação e Configuração
 
-The only requirement is having Node.js & npm installed - [install with nvm](https://github.com/nvm-sh/nvm#installing-and-updating)
+### Pré-requisitos
+*   Node.js (v18+)
+*   MySQL Server (local ou remoto)
 
-Follow these steps:
+### Passos
+1.  **Clone o repositório**
+    ```bash
+    git clone https://github.com/seu-usuario/party-joy-hub.git
+    cd party-joy-hub
+    ```
 
-```sh
-# Step 1: Clone the repository using the project's Git URL.
-git clone <YOUR_GIT_URL>
+2.  **Instale as dependências**
+    ```bash
+    npm install
+    ```
 
-# Step 2: Navigate to the project directory.
-cd <YOUR_PROJECT_NAME>
+3.  **Configure o Ambiente**
+    Crie um arquivo `.env` na raiz com as credenciais do seu banco de dados:
+    ```env
+    DB_HOST=localhost
+    DB_USER=root
+    DB_PASSWORD=sua_senha
+    DB_NAME=party_joy_hub
+    JWT_SECRET=sua_chave_secreta_super_segura
+    ```
 
-# Step 3: Install the necessary dependencies.
-npm i
+4.  **Inicie o Servidor Backend**
+    ```bash
+    npm run start:server
+    ```
+    *O servidor irá criar automaticamente as tabelas necessárias no banco de dados na primeira execução.*
 
-# Step 4: Start the development server with auto-reloading and an instant preview.
-npm run dev
-```
+5.  **Inicie o Frontend (Desenvolvimento)**
+    ```bash
+    npm run dev
+    ```
 
-**Edit a file directly in GitHub**
+## 🔮 O Futuro do Party Joy Hub
 
-- Navigate to the desired file(s).
-- Click the "Edit" button (pencil icon) at the top right of the file view.
-- Make your changes and commit the changes.
+Estamos apenas começando! Nossa visão para o futuro inclui transformar o **Party Joy Hub** em um serviço SaaS (Software as a Service) completo, oferecendo:
 
-**Use GitHub Codespaces**
+*   **Planos Premium**: Recursos exclusivos para eventos de grande porte.
+*   **Personalização de Marca**: White-label para empresas usarem sua própria identidade visual.
+*   **Biblioteca de Jogos**: Packs de perguntas prontos para diversos temas (Cinema, Esportes, Cultura Pop).
+*   **Modo Torneio**: Campeonatos multi-rodadas com persistência de pontuação a longo prazo.
 
-- Navigate to the main page of your repository.
-- Click on the "Code" button (green button) near the top right.
-- Select the "Codespaces" tab.
-- Click on "New codespace" to launch a new Codespace environment.
-- Edit files directly within the Codespace and commit and push your changes once you're done.
+---
 
-## What technologies are used for this project?
-
-This project is built with:
-
-- Vite
-- TypeScript
-- React
-- shadcn-ui
-- Tailwind CSS
-
-## How can I deploy this project?
-
-Simply open [Lovable](https://lovable.dev/projects/REPLACE_WITH_PROJECT_ID) and click on Share -> Publish.
-
-## Can I connect a custom domain to my Lovable project?
-
-Yes, you can!
-
-To connect a domain, navigate to Project > Settings > Domains and click Connect Domain.
-
-Read more here: [Setting up a custom domain](https://docs.lovable.dev/features/custom-domain#custom-domain)
+Desenvolvido por @leocostarj22 @leocostadeveloper
+www.leocostadeveloper.com

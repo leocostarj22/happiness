@@ -23,7 +23,7 @@ const Index = () => {
         {/* Logo */}
         <div className="text-center mb-16 animate-slide-up">
           <h1 className="font-display text-7xl md:text-8xl lg:text-9xl gradient-text mb-4 tracking-tight">
-            Happyness
+            Happiness
           </h1>
           <p className="text-xl md:text-2xl text-muted-foreground max-w-md mx-auto">
             O jogo perfeito para animar suas festas! 🎉

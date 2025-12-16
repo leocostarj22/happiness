@@ -1,30 +1,37 @@
 import { create } from 'zustand';
+import { persist, createJSONStorage } from 'zustand/middleware';
+import { Socket } from 'socket.io-client';
 import { Game, Player, Vote, Question, GameMode } from '@/types/game';
+import { socket } from '@/lib/socket';
+import { useAuthStore } from './authStore';
 
 interface GameStore {
+  socket: Socket;
   game: Game | null;
   players: Player[];
   votes: Vote[];
   showResults: boolean;
   currentPlayer: Player | null;
+  error: string | null;
   
   // Game actions
   createGame: (name: string, mode: GameMode) => void;
-  addQuestion: (question: Omit<Question, 'id'>) => void;
-  removeQuestion: (id: string) => void;
+  loadGame: (gameId: string) => void;
+  clearGame: () => void;
+  deleteGame: (gameId: string) => Promise<boolean>;
+  resetGame: (gameId: string) => Promise<boolean>;
+  openLobby: () => void;
   startGame: () => void;
-  nextQuestion: () => void;
-  endGame: () => void;
-  resetGame: () => void;
+  nextQuestion: () => void; // TODO: Implement on backend
   
   // Player actions
-  joinGame: (name: string) => Player;
-  removePlayer: (id: string) => void;
+  joinGame: (gameId: string, name: string) => void;
+  leaveGame: () => void;
+  clearError: () => void;
   
   // Voting actions
   submitVote: (playerId: string, optionIndex: number) => void;
-  showQuestionResults: () => void;
-  hideResults: () => void;
+  showQuestionResults: () => void; // TODO: Implement sync
   
   // Utilities
   getGameCode: () => string;
@@ -33,198 +40,227 @@ interface GameStore {
   getPlayerRanking: () => Player[];
 }
 
-const generateId = () => Math.random().toString(36).substring(2, 9);
-const generateGameCode = () => Math.random().toString(36).substring(2, 8).toUpperCase();
+export const useGameStore = create<GameStore>()(
+  persist(
+    (set, get) => {
+      // Listen for global state updates from server
+      socket.on('gameStateUpdate', (serverState) => {
+        console.log('Received gameStateUpdate:', serverState);
+        
+        // Normalize votes to ensure camelCase keys (handle potential snake_case from server)
+        const normalizedVotes = serverState.votes ? serverState.votes.map((v: any) => ({
+           id: v.id,
+           gameId: v.gameId || v.game_id,
+           playerId: v.playerId || v.player_id,
+           questionId: v.questionId || v.question_id,
+           optionIndex: (v.optionIndex !== undefined) ? v.optionIndex : v.option_index,
+           createdAt: v.createdAt || v.created_at
+        })) : [];
 
-const avatars = ['🎉', '🎊', '🎈', '🎁', '🌟', '⭐', '🔥', '💫', '🚀', '🎯', '🎪', '🎭'];
+        if (serverState.game) {
+           console.log(`Game Status: ${serverState.game.status}, Questions: ${serverState.game.questions?.length}`);
+        }
+        set({
+          game: serverState.game,
+          players: serverState.players,
+          votes: normalizedVotes,
+          showResults: serverState.showResults
+        });
+      });
 
-export const useGameStore = create<GameStore>((set, get) => ({
-  game: null,
-  players: [],
-  votes: [],
-  showResults: false,
-  currentPlayer: null,
+      socket.on('gameCreated', ({ gameId, name, mode }) => {
+        // Set initial game state so the UI advances
+        set({ 
+          game: {
+            id: gameId,
+            name,
+            mode,
+            status: 'waiting',
+            questions: [],
+            currentQuestionIndex: 0
+          }
+        });
+      });
 
-  createGame: (name, mode) => {
-    const game: Game = {
-      id: generateGameCode(),
-      name,
-      mode,
-      questions: [],
-      status: 'waiting',
-      currentQuestionIndex: 0,
-    };
-    set({ game, players: [], votes: [], showResults: false });
-  },
+      socket.on('playerJoined', (player) => {
+         set({ currentPlayer: player, error: null });
+      });
 
-  addQuestion: (questionData) => {
-    const { game } = get();
-    if (!game) return;
-    
-    const question: Question = {
-      ...questionData,
-      id: generateId(),
-    };
-    
-    set({
-      game: {
-        ...game,
-        questions: [...game.questions, question],
-      },
-    });
-  },
+      socket.on('error', (message) => {
+        set({ error: message });
+      });
 
-  removeQuestion: (id) => {
-    const { game } = get();
-    if (!game) return;
-    
-    set({
-      game: {
-        ...game,
-        questions: game.questions.filter((q) => q.id !== id),
-      },
-    });
-  },
-
-  startGame: () => {
-    const { game } = get();
-    if (!game || game.questions.length === 0) return;
-    
-    set({
-      game: { ...game, status: 'playing', currentQuestionIndex: 0 },
-      votes: [],
-      showResults: false,
-    });
-  },
-
-  nextQuestion: () => {
-    const { game } = get();
-    if (!game) return;
-    
-    const nextIndex = game.currentQuestionIndex + 1;
-    if (nextIndex >= game.questions.length) {
-      set({ game: { ...game, status: 'finished' } });
-    } else {
-      set({
-        game: { ...game, currentQuestionIndex: nextIndex },
+      return {
+        socket,
+        game: null,
+        players: [],
         votes: [],
         showResults: false,
-      });
-    }
-  },
+        currentPlayer: null,
+        error: null,
 
-  endGame: () => {
-    const { game } = get();
-    if (!game) return;
-    set({ game: { ...game, status: 'finished' } });
-  },
+        createGame: (name, mode) => {
+          set({ error: null });
+          const token = useAuthStore.getState().token;
+          socket.emit('createGame', { name, mode, token });
+        },
 
-  resetGame: () => {
-    set({ game: null, players: [], votes: [], showResults: false, currentPlayer: null });
-  },
+        loadGame: (gameId) => {
+           socket.emit('requestState', { gameId });
+        },
 
-  joinGame: (name) => {
-    const player: Player = {
-      id: generateId(),
-      name,
-      avatar: avatars[Math.floor(Math.random() * avatars.length)],
-      score: 0,
-      connected: true,
-    };
-    
-    set((state) => ({
-      players: [...state.players, player],
-      currentPlayer: player,
-    }));
-    
-    return player;
-  },
+        openLobby: () => {
+           const { game } = get();
+           if (game) {
+              socket.emit('openLobby', { gameId: game.id });
+           }
+        },
 
-  removePlayer: (id) => {
-    set((state) => ({
-      players: state.players.filter((p) => p.id !== id),
-    }));
-  },
+        deleteGame: async (gameId) => {
+           const token = useAuthStore.getState().token;
+           return new Promise((resolve) => {
+              socket.emit('deleteGame', { gameId, token }, (response: any) => {
+                 resolve(response.success);
+              });
+           });
+        },
 
-  submitVote: (playerId, optionIndex) => {
-    const { game, votes, players } = get();
-    if (!game) return;
-    
-    const currentQuestion = game.questions[game.currentQuestionIndex];
-    if (!currentQuestion) return;
-    
-    // Check if player already voted
-    const existingVote = votes.find(
-      (v) => v.playerId === playerId && v.questionId === currentQuestion.id
-    );
-    if (existingVote) return;
-    
-    const vote: Vote = {
-      playerId,
-      questionId: currentQuestion.id,
-      optionIndex,
-    };
-    
-    // Update score for quiz mode
-    let updatedPlayers = players;
-    if (game.mode === 'quiz' && currentQuestion.correctAnswer === optionIndex) {
-      updatedPlayers = players.map((p) =>
-        p.id === playerId ? { ...p, score: p.score + 100 } : p
-      );
-    }
-    
-    set({
-      votes: [...votes, vote],
-      players: updatedPlayers,
-    });
-  },
+        resetGame: async (gameId) => {
+           const token = useAuthStore.getState().token;
+           return new Promise((resolve) => {
+              socket.emit('resetGame', { gameId, token }, (response: any) => {
+                 resolve(response.success);
+              });
+           });
+        },
 
-  showQuestionResults: () => {
-    set({ showResults: true });
-  },
+        joinGame: (gameId, name) => {
+          set({ error: null });
+          const avatar = ['🎉', '🎊', '🎈', '🎁', '🌟'][Math.floor(Math.random() * 5)];
+          socket.emit('joinGame', { gameId, playerName: name, avatar });
+        },
 
-  hideResults: () => {
-    set({ showResults: false });
-  },
+        leaveGame: () => {
+          const { game, currentPlayer } = get();
+          if (game && currentPlayer) {
+             socket.emit('leaveGame', { gameId: game.id, playerId: currentPlayer.id });
+          }
+          set({ currentPlayer: null, game: null, players: [] });
+        },
 
-  getGameCode: () => {
-    const { game } = get();
-    return game?.id || '';
-  },
+        clearError: () => set({ error: null }),
 
-  getCurrentQuestion: () => {
-    const { game } = get();
-    if (!game) return null;
-    return game.questions[game.currentQuestionIndex] || null;
-  },
+        startGame: () => {
+          const { game } = get();
+          if (game) socket.emit('startGame', { gameId: game.id });
+        },
 
-  getVoteResults: () => {
-    const { game, votes, players } = get();
-    if (!game) return [];
-    
-    const currentQuestion = game.questions[game.currentQuestionIndex];
-    if (!currentQuestion) return [];
-    
-    const questionVotes = votes.filter((v) => v.questionId === currentQuestion.id);
-    const totalVotes = questionVotes.length;
-    
-    // Use players as options if the question is set to do so
-    const displayOptions = currentQuestion.usePlayersAsOptions 
-      ? players.map(p => `${p.avatar} ${p.name}`)
-      : currentQuestion.options;
-    
-    return displayOptions.map((option, index) => {
-      const count = questionVotes.filter((v) => v.optionIndex === index).length;
-      return {
-        option,
-        count,
-        percentage: totalVotes > 0 ? (count / totalVotes) * 100 : 0,
+        nextQuestion: () => {
+          const { game } = get();
+          if (game) {
+             socket.emit('nextQuestion', { gameId: game.id });
+          }
+        }, 
+        
+        addQuestion: (questionData) => {
+          const { game } = get();
+          if (game) {
+            socket.emit('addQuestion', { gameId: game.id, question: questionData });
+          }
+        },
+        removeQuestion: (questionId) => {
+          const { game } = get();
+          if (game) {
+            socket.emit('removeQuestion', { gameId: game.id, questionId });
+          }
+        },
+        removePlayer: () => {},
+        endGame: () => {},
+        clearGame: () => set({ game: null, players: [], votes: [] }),
+
+        submitVote: (playerId, optionIndex) => {
+          const { game, getCurrentQuestion, players } = get();
+          const question = getCurrentQuestion();
+          if (game && question) {
+            let targetPlayerId: string | undefined;
+            
+            // If voting for a player, identify who it is
+            if (question.usePlayersAsOptions && players && players[optionIndex]) {
+               targetPlayerId = players[optionIndex].id;
+            }
+
+            socket.emit('submitVote', { 
+              gameId: game.id, 
+              playerId, 
+              questionId: question.id, 
+              optionIndex,
+              targetPlayerId
+            });
+          }
+        },
+
+        showQuestionResults: () => {
+           const { game } = get();
+           if (game) {
+              socket.emit('showQuestionResults', { gameId: game.id });
+           }
+        },
+        hideResults: () => set({ showResults: false }),
+
+        getGameCode: () => get().game?.id || '',
+        
+        getCurrentQuestion: () => {
+          const { game } = get();
+          if (!game || !game.questions) return null;
+          return game.questions[game.currentQuestionIndex] || null;
+        },
+
+        getVoteResults: () => {
+          const { game, votes, players } = get();
+          if (!game) return [];
+          const currentQuestion = game.questions[game.currentQuestionIndex];
+          if (!currentQuestion) return [];
+          
+          const questionVotes = votes.filter((v) => v.questionId === currentQuestion.id);
+          const totalVotes = questionVotes.length;
+          
+          const displayOptions = currentQuestion.usePlayersAsOptions 
+            ? players.map(p => `${p.avatar} ${p.name}`)
+            : currentQuestion.options;
+          
+          return displayOptions.map((option, index) => {
+            const count = questionVotes.filter((v) => v.optionIndex === index).length;
+            return {
+              option,
+              count,
+              percentage: totalVotes > 0 ? (count / totalVotes) * 100 : 0,
+            };
+          });
+        },
+
+        getPlayerRanking: () => {
+          const { players } = get();
+          return [...players].sort((a, b) => b.score - a.score);
+        },
       };
-    });
-  },
-
-  getPlayerRanking: () => {
-    const { players } = get();
-    return [...players].sort((a, b) => b.score - a.score);
-  },
-}));
+    },
+    {
+      name: 'party-joy-hub-client',
+      storage: createJSONStorage(() => localStorage),
+      partialize: (state) => ({
+        currentPlayer: state.currentPlayer,
+        game: state.game // Persist game info too for reconnection
+      }),
+      onRehydrateStorage: () => (state) => {
+        if (state && state.currentPlayer && state.game) {
+          console.log('Attempting reconnection for:', state.currentPlayer.name);
+          socket.emit('joinGame', {
+             gameId: state.game.id,
+             playerName: state.currentPlayer.name,
+             avatar: state.currentPlayer.avatar 
+          });
+        }
+      }
+    }
+  )
+);

@@ -14,7 +14,7 @@ export interface Game {
   name: string;
   mode: GameMode;
   questions: Question[];
-  status: 'waiting' | 'playing' | 'finished';
+  status: 'waiting' | 'lobby' | 'playing' | 'finished';
   currentQuestionIndex: number;
 }
 
@@ -30,6 +30,7 @@ export interface Vote {
   playerId: string;
   questionId: string;
   optionIndex: number;
+  targetPlayerId?: string;
 }
 
 export interface GameState {

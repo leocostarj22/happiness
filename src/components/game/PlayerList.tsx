@@ -6,7 +6,9 @@ interface PlayerListProps {
 }
 
 const PlayerList = ({ players, showScores = false }: PlayerListProps) => {
-  if (players.length === 0) {
+  const connectedPlayers = players.filter(p => p.connected);
+
+  if (connectedPlayers.length === 0) {
     return (
       <div className="text-center py-8">
         <p className="text-muted-foreground text-lg">
@@ -27,7 +29,7 @@ const PlayerList = ({ players, showScores = false }: PlayerListProps) => {
 
   return (
     <div className="grid grid-cols-2 sm:grid-cols-3 md:grid-cols-4 lg:grid-cols-6 gap-4">
-      {players.map((player, index) => (
+      {connectedPlayers.map((player, index) => (
         <div
           key={player.id}
           className="bg-card border border-border rounded-xl p-4 text-center animate-scale-in card-shadow"
