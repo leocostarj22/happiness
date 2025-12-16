@@ -533,6 +533,17 @@ io.on('connection', (socket) => {
     io.to(gameId).emit('gameStateUpdate', state);
   });
 
+  socket.on('requestState', async ({ gameId }) => {
+    const cleanId = gameId ? gameId.trim() : '';
+    socket.join(cleanId);
+    const state = await getGameState(cleanId);
+    if (state) {
+      socket.emit('gameStateUpdate', state);
+    } else {
+      socket.emit('error', 'Game not found');
+    }
+  });
+
   socket.on('submitVote', async ({ gameId, playerId, questionId, optionIndex, targetPlayerId }) => {
     // Check if already voted
     const [existing] = await pool.query(

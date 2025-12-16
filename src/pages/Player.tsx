@@ -254,6 +254,8 @@ const Player = () => {
     );
   }
 
+  
+
   // Playing
   if (!currentQuestion) {
     return (
