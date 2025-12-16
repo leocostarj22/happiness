@@ -1,5 +1,6 @@
 import { Question, Player } from '@/types/game';
 import { useEffect, useState } from 'react';
+import { playCountdownBeep, playTimeUpSound } from '@/lib/audio';
 
 interface QuestionDisplayProps {
   question: Question;
@@ -30,6 +31,15 @@ const QuestionDisplay = ({
 
     return () => clearInterval(timer);
   }, [question.id, question.timeLimit]);
+
+  // Sound effects
+  useEffect(() => {
+    if (timeLeft <= 10 && timeLeft > 0) {
+      playCountdownBeep();
+    } else if (timeLeft === 0) {
+      playTimeUpSound();
+    }
+  }, [timeLeft]);
 
   const colors = [
     'bg-happiness-yellow',

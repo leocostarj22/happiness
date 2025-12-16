@@ -9,6 +9,7 @@ import RankingDisplay from '@/components/game/RankingDisplay';
 import { Button } from '@/components/ui/button';
 import { Play, SkipForward, BarChart3, Gamepad2 } from 'lucide-react';
 import { socket } from '@/lib/socket';
+import { playVoteSound } from '@/lib/audio';
 
 const Dashboard = () => {
   const navigate = useNavigate();
@@ -38,13 +39,14 @@ const Dashboard = () => {
 
   useEffect(() => {
     const handleVoteCast = (voter: { playerId: string, name: string, avatar: string }) => {
+       playVoteSound();
        const id = Math.random().toString(36); // Unique ID for this notification instance
        setLastVoters(prev => [...prev, { ...voter, id }]);
        
-       // Remove after 3 seconds
+       // Remove after 15 seconds
        setTimeout(() => {
          setLastVoters(prev => prev.filter(v => v.id !== id));
-       }, 3000);
+       }, 15000);
     };
 
     socket.on('voteCast', handleVoteCast);

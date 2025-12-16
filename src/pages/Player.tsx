@@ -3,7 +3,8 @@ import { useParams, useNavigate } from 'react-router-dom';
 import { useGameStore } from '@/stores/gameStore';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
-import { ArrowLeft, Send, Trophy, Clock, CheckCircle, X, LogOut } from 'lucide-react';
+import { Send, CheckCircle, X, ArrowLeft, Loader2, Clock, LogOut, Trophy } from 'lucide-react';
+import { playSuccessSound, playFailureSound } from '@/lib/audio';
 
 const Player = () => {
   const { code } = useParams<{ code: string }>();
@@ -45,6 +46,31 @@ const Player = () => {
   }, [game, players, currentPlayer, leaveGame, navigate]);
 
   const currentQuestion = getCurrentQuestion();
+
+  // Sound effects for results
+  useEffect(() => {
+    if (showResults && (playerVote || hasVoted) && game && currentQuestion && currentPlayer) {
+      const votedOption = playerVote?.optionIndex ?? selectedOption;
+      let isSuccess = false;
+
+      if (game.mode === 'quiz') {
+        isSuccess = currentQuestion.correctAnswer === votedOption;
+      } else if (game.mode === 'voting' && currentQuestion.usePlayersAsOptions) {
+         const questionVotes = votes.filter(v => v.questionId === currentQuestion.id);
+         const voteCounts: Record<string, number> = {};
+         questionVotes.forEach(v => {
+            const target = v.targetPlayerId || (players[v.optionIndex]?.id);
+            if (target) voteCounts[target] = (voteCounts[target] || 0) + 1;
+         });
+         const myVotes = voteCounts[currentPlayer.id] || 0;
+         const maxVotes = Math.max(...Object.values(voteCounts), 0);
+         isSuccess = myVotes === maxVotes && maxVotes > 0;
+      }
+
+      if (isSuccess) playSuccessSound();
+      else playFailureSound();
+    }
+  }, [showResults, game?.mode]); // Trigger when results are shown
 
   // Check if player already voted for current question
   const playerVote = currentPlayer && currentQuestion
