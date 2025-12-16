@@ -115,7 +115,7 @@ const Dashboard = () => {
       {/* Header */}
       <header className="border-b border-border bg-card/50 backdrop-blur-sm sticky top-0 z-50">
         <div className="container mx-auto px-4 py-4 flex items-center justify-between">
-          <h1 className="font-display text-2xl gradient-text">Hapiness</h1>
+          <h1 className="font-display text-2xl gradient-text">Happiness</h1>
           <div className="flex items-center gap-4">
             <span className="text-muted-foreground">
               {game.mode === 'quiz' ? '🎯 Quiz' : '🗳️ Votação'}
